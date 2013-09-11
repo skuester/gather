@@ -1,0 +1,160 @@
+#!/usr/bin/env ruby
+
+# Author: Shane Kuester
+# Author Email: shout@shanekuester.com
+# MIT LICENSE
+
+require 'json'
+require 'pathname'
+
+# help
+if ARGV.empty?
+	warn <<-EOF
+usage:
+
+	gather install [<module>, ...]
+	gather pull [<module>, ...]
+	gather push <module>
+	gather merge <module>
+
+When a module is optional and not provided, the operation is performed on all modules.
+Create a gather.json file with the following format:
+
+	{
+		"module_name": {
+			"path": "local/subdirectory",
+			"source": "git@remote.com/repo.git#branch_or_ref",
+			//optional - if different than source
+			"push_to": "git@other.com/repo.git#branch"
+		}
+	}
+
+EOF
+	exit 1
+end
+
+
+class Gather
+	def initialize(config)
+		@config = normalize(config)
+	end
+
+
+	# initialize one or more modules.
+	# this ensures each module is ready to go
+	def install(mod_names = [])
+		mod_names = @config.keys if mod_names.empty?
+		mod_names.each do |name|
+			dir, repo, branch = subtree name
+			`git subtree add --prefix=#{dir} #{repo} #{branch} --squash -m #{default_message_for name}`
+		end
+	end
+
+
+	# use this for updating
+	def pull(mod_names = [])
+		mod_names = @config.keys if mod_names.empty?
+		mod_names.each do |name|
+			dir, repo, branch = subtree name
+			`git subtree pull --prefix=#{dir} #{repo} #{branch} --squash -m #{default_message_for name}`
+		end
+	end
+
+
+	# normally pull instead!
+	# BUT: merge can be used to rollback to earlier versions
+	# git subtree merge --prefix=<pre> --squash <local split branch>~1
+	# do stuff
+	# git subtree merge --prefix=<pre> --squash <local split branch> ## changes still present
+	def merge(args)
+		name = args.first
+		dir, repo, branch = subtree name
+		`git subtree merge --prefix=#{dir} #{repo} #{branch} --squash`
+	end
+
+
+	# split simply breaks off a subtree
+	# break off lib and commit it to a new repo
+	# git subtree split --prefix=lib --annotate='(split) ' -b split
+	# git push <new repo> split:master
+	def push(args)
+		name = args.first
+		mod = @config[name]
+		temp_branch = "_#{name}"
+		remote = mod[:push_to]
+		`git subtree split --prefix=#{mod[:path]} -b #{temp_branch}`
+		`git push #{remote[:repo]} #{temp_branch}:#{remote[:ref]}`
+		`git branch -D #{temp_branch}`
+	end
+
+
+private
+
+
+	# TODO: offer annotate and squash boolean options
+	def normalize(config)
+		# the script should immediately end if an undefined module is being accessed
+		cnf = Hash.new do |mod_name|
+			warn "No module exists with the name: #{mod_name}"
+			exit 1
+		end
+
+		config.each do |module_name, settings|
+			source = normalize_repo(settings['source'])
+			push_to = settings.has_key?('push_to') ? normalize_repo(setting['push_to']) : source
+			cnf[module_name] = {
+				path: settings['path'],
+				source: source,
+				push_to: push_to,
+			}
+		end
+		cnf
+	end
+
+
+	def normalize_repo(str)
+		repo, ref = str.split('#')
+		ref = 'master' if ref.nil? || ref.empty?
+		{:repo => repo, :ref => ref}
+	end
+
+
+		# extract a read-only subtree from config
+	def subtree(name)
+		mod = @config[name]
+		[mod[:path], mod[:source][:repo], mod[:source][:ref]]
+	end
+
+
+	def default_message_for(name)
+		"'[sub] #{name} updated'"
+	end
+end
+
+
+
+
+def run(cli_args)
+	command = cli_args.shift
+
+	# get current working directory with the git repo and gather.json
+	cwd = Pathname.new(Dir.pwd).ascend do |dir|
+		break dir if File.exists?(dir.join 'gather.json') && Dir[dir.join('.git')]
+	end or begin
+		warn "Missing gather.json file"
+		exit 1
+	end
+
+	# read config jason
+	begin
+		config = JSON.parse File.read(cwd.join 'gather.json')
+	rescue
+		warn "Invalid JSON in gather.json"
+		exit 1
+	end
+
+	gather = Gather.new config
+	gather.send command, cli_args
+end
+
+run ARGV
