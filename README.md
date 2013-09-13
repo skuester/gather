@@ -25,7 +25,10 @@ The code is crud, but fun:
 ## Requirements
 
 * Ruby >= 1.9
+* Git subtree
 
 ## Install
 
 Put `gather` somewhere where your path can find it.
+
+If you need to install `git subtree` and you are on a Unix-y system, you can try using the included `install-git-subtree.sh` script. I can't make any guarantees about it, so use at your own risk - but it worked for me.
