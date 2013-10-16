@@ -46,6 +46,7 @@ class Gather
 		mod_names = @config.keys if mod_names.empty?
 		mod_names.each do |name|
 			dir, repo, branch = subtree name
+			ensure_dir_exists dir
 			`git subtree add --prefix=#{dir} #{repo} #{branch} --squash -m #{default_message_for name}`
 		end
 	end
@@ -56,6 +57,7 @@ class Gather
 		mod_names = @config.keys if mod_names.empty?
 		mod_names.each do |name|
 			dir, repo, branch = subtree name
+			ensure_dir_exists dir
 			`git subtree pull --prefix=#{dir} #{repo} #{branch} --squash -m #{default_message_for name}`
 		end
 	end
@@ -128,6 +130,10 @@ private
 
 	def default_message_for(name)
 		"'[sub] #{name} updated'"
+	end
+
+	def ensure_dir_exists(dir)
+		Dir.mkdir(dir) unless File.exists? dir
 	end
 end
 
