@@ -51,6 +51,16 @@ class Gather
 	end
 
 
+	def delete(mod_names = [])
+		mod_names = @config.keys if mod_names.empty?
+		mod_names.each do |name|
+			dir, repo, branch = subtree name
+			`git rm -r #{dir}`
+			`git commit -am '[sub] #{name} deleted'`
+		end
+	end
+
+
 	# use this for updating
 	def pull(mod_names = [])
 		mod_names = @config.keys if mod_names.empty?
