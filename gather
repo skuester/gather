@@ -19,14 +19,14 @@ usage:
 When a module is optional and not provided, the operation is performed on all modules.
 Create a gather.json file with the following format:
 
-	{
-		"module_name": {
-			"path": "local/subdirectory",
-			"source": "git@remote.com/repo.git#branch_or_ref",
-			//optional - if different than source
-			"push_to": "git@other.com/repo.git#branch"
-		}
-	}
+    {
+        "module_name": {
+            "path": "local/subdirectory",
+            "source": "git@remote.com/repo.git#branch_or_ref",
+            //optional - if different than source
+            "push_to": "git@other.com/repo.git#branch"
+        }
+    }
 
 EOF
 end
