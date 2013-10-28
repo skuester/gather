@@ -7,9 +7,8 @@
 require 'json'
 require 'pathname'
 
-# help
-if ARGV.empty?
-	warn <<-EOF
+def usage
+<<-EOF
 usage:
 
 	gather install [<module>, ...]
@@ -30,6 +29,10 @@ Create a gather.json file with the following format:
 	}
 
 EOF
+end
+
+def exit_with_usage
+	warn usage
 	exit 1
 end
 
@@ -98,6 +101,12 @@ class Gather
 	end
 
 
+	def method_missing(name, args)
+		puts "There's no operation called '#{name}'"
+		exit_with_usage
+	end
+
+
 private
 
 
@@ -145,6 +154,7 @@ end
 
 
 def run(cli_args)
+	exit_with_usage if cli_args.empty?
 	command = cli_args.shift
 
 	# get current working directory with the git repo and gather.json
